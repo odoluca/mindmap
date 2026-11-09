@@ -139,3 +139,16 @@ test('layout op sets the mode or reports a one-off relayout', () => {
   assert.equal(M.applyOps(m, [{ op: 'layout', mode: 'nope' }]).ok, false);
   assert.equal(M.applyOps(m, [{ op: 'frobnicate' }]).ok, false);
 });
+
+test('setMap grid is clamped and normalized', () => {
+  const m = M.newMap({ kind: 'flowchart' });
+  assert.equal(m.settings.grid, 0);
+  assert.ok(M.applyOps(m, [{ op: 'setMap', settings: { grid: 25 } }]).ok);
+  assert.equal(m.settings.grid, 25);
+  M.applyOps(m, [{ op: 'setMap', settings: { grid: 'abc' } }]);
+  assert.equal(m.settings.grid, 0);
+  M.applyOps(m, [{ op: 'setMap', settings: { grid: 9999 } }]);
+  assert.equal(m.settings.grid, 200);
+  const n = M.normalize({ nodes: [], settings: { grid: -5 } });
+  assert.equal(n.settings.grid, 0);
+});

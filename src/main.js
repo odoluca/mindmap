@@ -1,11 +1,11 @@
 // The editor: view, interaction, panels, persistence and export. Every edit goes through applyOps().
-import { APP_VERSION } from './version.js';
-import * as M from './model.js';
-import { computeSizes, computeLayout, visibleNodes, bounds } from './layout.js';
-import { createMeasure, renderNodes, renderEdges, buildSvg, routeEdge, PALETTE } from './render.js';
-import { store, download, pickFile, prefs, channel } from './storage.js';
-import { installApi } from './api.js';
-import { sampleMap } from './sample.js';
+import { APP_VERSION } from './version.js?v=0.2.0';
+import * as M from './model.js?v=0.2.0';
+import { computeSizes, computeLayout, visibleNodes, bounds } from './layout.js?v=0.2.0';
+import { createMeasure, renderNodes, renderEdges, buildSvg, routeEdge, PALETTE } from './render.js?v=0.2.0';
+import { store, download, pickFile, prefs, channel } from './storage.js?v=0.2.0';
+import { installApi } from './api.js?v=0.2.0';
+import { sampleMap } from './sample.js?v=0.2.0';
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -153,6 +153,9 @@ class Editor {
     this.emit('change', { id: this.map.id, ops: Array.isArray(ops) ? ops : [ops], author, results: r.results });
     return r;
   }
+  /** Snap a coordinate to the map's grid (identity when the grid is off). */
+  snap(v) { const g = this.map?.settings.grid || 0; return g ? Math.round(v / g) * g : Math.round(v); }
+  toggleGrid() { const g = this.map.settings.grid ? 0 : (prefs.get('grid', 20) || 20); if (g) prefs.set('grid', g); this.apply([{ op: 'setMap', settings: { grid: g } }], { silent: true }); this.toast(g ? `Snap to grid: ${g}px` : 'Snap to grid off'); }
   /** In free layout, arrange freshly added nodes as a tidy tree next to their parent (or below everything else). */
   placeSubtree(ids) {
     const set = new Set(ids);
@@ -166,12 +169,12 @@ class Editor {
     let ox, oy;
     if (parent) { const ps = sizes.get(parent.id); ox = parent.x + ps.w + 64 - b.x; oy = parent.y - b.y; }
     else { const rest = new Map([...this.map.nodes].filter((n) => !set.has(n.id)).map((n) => [n.id, { x: n.x, y: n.y }])); const rb = bounds(rest, sizes); ox = (rest.size ? rb.x : 0) - b.x; oy = (rest.size ? rb.y + rb.h + 60 : 0) - b.y; }
-    for (const [id, p] of pos) { const n = M.nodeById(this.map, id); n.x = Math.round(p.x + ox); n.y = Math.round(p.y + oy); }
+    for (const [id, p] of pos) { const n = M.nodeById(this.map, id); n.x = this.snap(p.x + ox); n.y = this.snap(p.y + oy); }
   }
   applyLayoutOnce(mode) {
     this.sizes = computeSizes(this.map, this.measure);
     const pos = computeLayout(this.map, mode, this.sizes);
-    for (const [id, p] of pos) { const n = M.nodeById(this.map, id); if (n) { n.x = Math.round(p.x); n.y = Math.round(p.y); } }
+    for (const [id, p] of pos) { const n = M.nodeById(this.map, id); if (n) { n.x = this.snap(p.x); n.y = this.snap(p.y); } }
   }
   undo() { const s = this.undoStack.pop(); if (!s) return; this.finishEdit(false); this.redoStack.push(M.clone(this.map)); this.restore(s); this.toast('Undo'); }
   redo() { const s = this.redoStack.pop(); if (!s) return; this.finishEdit(false); this.undoStack.push(M.clone(this.map)); this.restore(s); this.toast('Redo'); }
@@ -199,11 +202,16 @@ class Editor {
   render() {
     const view = { nodesEl: this.els.nodes, edgesEl: this.els.edges, map: this.map, pos: this.pos, sizes: this.sizes, visible: this.visible, selected: this.selected, selectedEdge: this.selectedEdge, editing: this.editing, matches: this.matches, me: this.me, showAuthors: this.map.settings.showAuthors !== false, counts: this.counts, hoverLink: this.hoverLink };
     renderNodes(view); renderEdges(view);
+    this.applyView(this.map.view);
     $('statusInfo').textContent = `${this.map.nodes.length} nodes · ${this.map.edges.length} links · ${this.map.notes.length} notes`;
   }
   applyView(v) {
     const { x, y, scale } = v;
     this.els.viewport.style.transform = `translate(${x}px, ${y}px) scale(${scale})`;
+    const g = this.map?.settings.grid || 0;
+    const cs = this.els.canvas.style;
+    if (g) { const s = g * scale; cs.backgroundSize = `${s}px ${s}px`; cs.backgroundPosition = `${x}px ${y}px`; this.els.canvas.classList.toggle('grid-fine', s < 12); }
+    else { cs.backgroundSize = ''; cs.backgroundPosition = ''; this.els.canvas.classList.remove('grid-fine'); }
     $('zoomLabel').textContent = Math.round(scale * 100) + '%';
   }
   setView(x, y, scale, persist = true) {
@@ -450,7 +458,9 @@ class Editor {
         if (!drag.moved && Math.hypot(dx, dy) < 3 / this.map.view.scale) return;
         drag.moved = true;
         if (this.map.settings.layout === 'free') {
-          for (const [id, o] of drag.origin) { const p = this.pos.get(id); if (p) { p.x = o.x + dx; p.y = o.y + dy; } }
+          const g = drag.origin.get(drag.id);
+          const sdx = g ? this.snap(g.x + dx) - g.x : dx, sdy = g ? this.snap(g.y + dy) - g.y : dy;
+          for (const [id, o] of drag.origin) { const p = this.pos.get(id); if (p) { p.x = o.x + sdx; p.y = o.y + sdy; } }
           this.render();
         } else {
           const el = nodes.querySelector(`.node[data-id="${CSS.escape(drag.id)}"]`);
@@ -492,7 +502,7 @@ class Editor {
       if (edge && !edge.dataset.id.startsWith('tree:')) { const label = prompt('Link label', this.map.edges.find((x) => x.id === edge.dataset.id)?.label || ''); if (label != null) this.apply([{ op: 'updateEdge', id: edge.dataset.id, label }]); return; }
       if (e.target === canvas || e.target === this.els.viewport || e.target.closest('#edges')) {
         const w = this.screenToWorld(e.clientX, e.clientY);
-        const r = this.apply([{ op: 'addNode', parent: null, text: 'New node', x: Math.round(w.x - 50), y: Math.round(w.y - 20) }]);
+        const r = this.apply([{ op: 'addNode', parent: null, text: 'New node', x: this.snap(w.x - 50), y: this.snap(w.y - 20) }]);
         if (r.ok) { this.select([r.results[0].id]); this.startEdit(r.results[0].id); }
       }
     });
@@ -532,7 +542,8 @@ class Editor {
       case 'c': case 'C': if (n && !mod && this.counts.get(n.id)) this.apply([{ op: 'updateNode', id: n.id, collapsed: !n.collapsed }], { silent: true }); break;
       case 'l': case 'L': if (!mod && this.selected.size === 2) { const [a, b] = [...this.selected]; const r = this.apply([{ op: 'addEdge', from: a, to: b }]); if (r.ok) this.select([], { edge: r.results[0].id }); } break;
       case 'd': case 'D': if (mod && n) { e.preventDefault(); this.duplicate(n.id); } break;
-      case 'c': default: break;
+      case 'g': case 'G': if (!mod) this.toggleGrid(); break;
+      default: break;
     }
     if (mod && e.key.toLowerCase() === 'c' && n) { e.preventDefault(); this.copy(this.subtreeMarkdown(n.id), 'Branch copied as outline'); }
   }
@@ -619,6 +630,7 @@ class Editor {
         this.field('Kind', `<select id="mKind">${M.KINDS.map((k) => `<option value="${k}"${map.kind === k ? ' selected' : ''}>${k === 'mindmap' ? 'Mind map' : 'Flowchart'}</option>`).join('')}</select>`) +
         this.field('Layout', `<select id="mLayout">${M.LAYOUTS.map((k) => `<option value="${k}"${map.settings.layout === k ? ' selected' : ''}>${k}</option>`).join('')}</select>`) +
         this.field('Link style', `<select id="mEdge">${M.EDGE_STYLES.map((k) => `<option value="${k}"${map.settings.edgeStyle === k ? ' selected' : ''}>${k}</option>`).join('')}</select>`) +
+        this.field('Snap to grid', `<select id="mGrid">${[0, 10, 20, 25, 40, 50].map((g) => `<option value="${g}"${(map.settings.grid || 0) === g ? ' selected' : ''}>${g ? g + ' px' : 'Off'}</option>`).join('')}</select>`) +
         `<div class="field check"><label><input type="checkbox" id="mAuthors"${map.settings.showAuthors !== false ? ' checked' : ''}> Mark nodes added by others (AI)</label></div>` +
         this.field('Your author name', `<input type="text" id="mMe" value="${esc(this.me)}" placeholder="user">`) +
         `<h3 class="sec">Map</h3><div class="stat"><span>Nodes</span><b>${map.nodes.length}</b></div><div class="stat"><span>Links</span><b>${map.edges.length}</b></div><div class="stat"><span>Notes</span><b>${map.notes.length}</b></div><div class="stat"><span>Map id</span><b class="mono">${esc(map.id)}</b></div><div class="stat"><span>Updated</span><b>${fmtTime(map.updatedAt)}</b></div>` +
@@ -628,6 +640,7 @@ class Editor {
       $('mKind').onchange = (ev) => this.apply([{ op: 'setMap', kind: ev.target.value }]);
       $('mLayout').onchange = (ev) => this.apply([{ op: 'layout', mode: ev.target.value }]);
       $('mEdge').onchange = (ev) => this.apply([{ op: 'setMap', settings: { edgeStyle: ev.target.value } }]);
+      $('mGrid').onchange = (ev) => { const g = +ev.target.value; if (g) prefs.set('grid', g); this.apply([{ op: 'setMap', settings: { grid: g } }], { silent: true }); };
       $('mAuthors').onchange = (ev) => this.apply([{ op: 'setMap', settings: { showAuthors: ev.target.checked } }], { silent: true });
       $('mMe').onchange = (ev) => { this.me = ev.target.value.trim() || 'user'; prefs.set('author', this.me); this.render(); };
       $('mLayoutOnce').onclick = () => { const mode = map.settings.layout === 'free' ? (map.kind === 'flowchart' ? 'layered-down' : 'mindmap') : map.settings.layout; this.apply([{ op: 'layout', mode, once: true }]); };

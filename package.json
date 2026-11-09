@@ -1,6 +1,6 @@
 {
   "name": "mindmap",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "description": "Mind maps and flowcharts in the browser with an API any AI can use. No build step, no dependencies, no backend.",

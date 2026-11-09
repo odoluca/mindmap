@@ -1,5 +1,5 @@
 // The example map shown on first launch.
-import { newMap, applyOps } from './model.js';
+import { newMap, applyOps } from './model.js?v=0.2.0';
 
 export function sampleMap() {
   const map = newMap({ name: 'Welcome to Mindmap', root: 'Mindmap' });

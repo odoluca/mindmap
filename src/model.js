@@ -21,9 +21,12 @@ const num = (v, fallback = 0) => (v !== null && v !== '' && Number.isFinite(+v) 
 const oneOf = (v, list, fallback) => (list.includes(v) ? v : fallback);
 const tags = (v) => (Array.isArray(v) ? v.map((t) => str(t).trim()).filter(Boolean) : typeof v === 'string' ? v.split(',').map((t) => t.trim()).filter(Boolean) : []);
 
+/** Snap grid size in px; 0 (or anything invalid) means off. */
+export const gridSize = (v) => Math.max(0, Math.min(200, Math.round(num(v, 0))));
+
 export function defaultSettings(kind) {
   const flow = kind === 'flowchart';
-  return { layout: flow ? 'free' : 'mindmap', edgeStyle: flow ? 'orthogonal' : 'curved', showAuthors: true };
+  return { layout: flow ? 'free' : 'mindmap', edgeStyle: flow ? 'orthogonal' : 'curved', showAuthors: true, grid: 0 };
 }
 
 export function newMap({ name = 'Untitled map', kind = 'mindmap', author = 'user', root = 'Central idea' } = {}) {
@@ -86,6 +89,7 @@ export function normalize(j) {
   };
   map.settings.layout = oneOf(map.settings.layout, LAYOUTS, defaultSettings(kind).layout);
   map.settings.edgeStyle = oneOf(map.settings.edgeStyle, EDGE_STYLES, defaultSettings(kind).edgeStyle);
+  map.settings.grid = gridSize(map.settings.grid);
   const seen = new Set();
   for (const n of j.nodes) {
     if (!n || typeof n !== 'object') continue;
@@ -321,6 +325,7 @@ const OPS = {
       const s = { ...map.settings, ...op.settings };
       s.layout = oneOf(s.layout, LAYOUTS, map.settings.layout);
       s.edgeStyle = oneOf(s.edgeStyle, EDGE_STYLES, map.settings.edgeStyle);
+      s.grid = gridSize(s.grid);
       map.settings = s;
     }
     if (op.view && typeof op.view === 'object') map.view = { x: num(op.view.x, map.view.x), y: num(op.view.y, map.view.y), scale: Math.min(4, Math.max(0.1, num(op.view.scale, map.view.scale))) };

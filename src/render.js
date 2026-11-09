@@ -1,6 +1,6 @@
 // Drawing: node shapes, edge routing, the live DOM renderer (HTML nodes over an SVG edge layer)
 // and a standalone SVG builder used for SVG and PNG export.
-import { STYLE, estimateMeasure, rootId } from './layout.js';
+import { STYLE, estimateMeasure, rootId } from './layout.js?v=0.2.0';
 
 export const PALETTE = {
   default: { fill: '#ffffff', stroke: '#c9ced6', text: '#1f2328' },

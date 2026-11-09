@@ -25,6 +25,7 @@ Hosted copy: https://odoluca.github.io/mindmap/
 | Arrows | Move the selection between nodes |
 | `Shift`+click, `L` | Select several nodes; link two selected nodes |
 | `C` | Collapse or expand a branch |
+| `G` | Snap to grid on or off (grid size in the Map tab; applies to free placement) |
 | `Ctrl+Z` / `Ctrl+Y` | Undo / redo (AI changes included) |
 | `Ctrl+D` | Duplicate the selected branch |
 | `Ctrl+C` / `Ctrl+V` | Copy the branch as an outline / paste an outline, JSON map or operations |

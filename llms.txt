@@ -76,7 +76,7 @@ unique node text.
   {op:"updateEdge", id, label?, directed?, style?, color?, from?, to?}
   {op:"deleteEdge", id}
   {op:"addNote", target?, text}   {op:"updateNote", id, text}   {op:"deleteNote", id}
-  {op:"setMap", name?, kind?, settings?:{layout?, edgeStyle?, showAuthors?}}
+  {op:"setMap", name?, kind?, settings?:{layout?, edgeStyle?, showAuthors?, grid?}}   grid: snap size in px for free placement, 0 = off
   {op:"layout", mode, once?}      once:true applies the layout to coordinates but keeps "free"
   {op:"replaceMap", map}          replaces nodes/edges/notes/settings of the open map
 Operations are applied in order and atomically: if one fails, nothing changes and the error names

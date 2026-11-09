@@ -87,6 +87,7 @@ h3.sec:first-child { margin-top: 0; }
 
 /* canvas */
 .canvas { position: relative; min-width: 0; min-height: 0; overflow: hidden; background-color: #eef0f3; background-image: radial-gradient(#d4d8de 1px, transparent 1px); background-size: 22px 22px; outline: none; cursor: grab; touch-action: none; user-select: none; }
+.canvas.grid-fine { background-image: radial-gradient(#dde0e5 1px, transparent 1px); }
 .canvas:active { cursor: grabbing; }
 .viewport { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
 .edges { position: absolute; left: 0; top: 0; width: 1px; height: 1px; overflow: visible; pointer-events: none; }

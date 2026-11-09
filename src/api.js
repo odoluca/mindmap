@@ -1,7 +1,7 @@
 // The programmatic surface: window.mindmap for scripts and browser-driving agents, and the URL hash commands.
-import { APP_VERSION } from './version.js';
-import * as M from './model.js';
-import { store } from './storage.js';
+import { APP_VERSION } from './version.js?v=0.2.0';
+import * as M from './model.js?v=0.2.0';
+import { store } from './storage.js?v=0.2.0';
 
 function decodeValue(raw) {
   // Accept URL-encoded text/JSON, or base64url (optionally prefixed with "b64:").
@@ -39,7 +39,7 @@ Maps live in this browser. The open map is the one all calls act on unless an id
               updateNode{id,...fields}  moveNode{id,parent,index}  deleteNode{id,cascade}
               addEdge{from,to,label,directed,style,color}  updateEdge{id,...}  deleteEdge{id}
               addNote{target,text}  updateNote{id,text}  deleteNote{id}
-              setMap{name,kind,settings:{layout,edgeStyle}}  layout{mode,once}  replaceMap{map}
+              setMap{name,kind,settings:{layout,edgeStyle,grid}}  layout{mode,once}  replaceMap{map}
   Node refs (parent, from, to, id, target) accept an id or a unique node text.
   Shortcuts: addNode(text, parent, extra), addTree(parent, nodes), link(from, to, label), note(text, target),
              getNode(ref), find(query), children(ref), roots(), outline() -> markdown, addOutline(text, parent),

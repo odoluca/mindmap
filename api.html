@@ -134,7 +134,7 @@ mindmap.fit();</code></pre>
 <tr><td><code>deleteEdge</code></td><td><code>id</code></td><td><code>{id}</code></td></tr>
 <tr><td><code>addNote</code></td><td><code>text</code>, <code>target?</code> (node or null for the map)</td><td><code>{id}</code></td></tr>
 <tr><td><code>updateNote</code> / <code>deleteNote</code></td><td><code>id</code>, <code>text</code></td><td><code>{id}</code></td></tr>
-<tr><td><code>setMap</code></td><td><code>name?</code>, <code>kind?</code>, <code>settings?</code> (<code>layout</code>, <code>edgeStyle</code>, <code>showAuthors</code>), <code>view?</code></td><td><code>{id}</code></td></tr>
+<tr><td><code>setMap</code></td><td><code>name?</code>, <code>kind?</code>, <code>settings?</code> (<code>layout</code>, <code>edgeStyle</code>, <code>showAuthors</code>, <code>grid</code>: snap-to-grid size in px for free placement, 0 = off), <code>view?</code></td><td><code>{id}</code></td></tr>
 <tr><td><code>layout</code></td><td><code>mode</code>, <code>once?</code> (apply to coordinates but keep the <code>free</code> mode)</td><td><code>{relayout}</code></td></tr>
 <tr><td><code>replaceMap</code></td><td><code>map</code>: a full map JSON whose content replaces the open map's nodes, edges, notes and settings (the id stays)</td><td><code>{id}</code></td></tr></table>
 
