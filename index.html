@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mindmap</title>
+<meta name="description" content="Mind maps and flowcharts in your browser, with an API any AI can use. No account, no server.">
+<link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+<link rel="canonical" href="https://odoluca.github.io/mindmap/">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Mindmap – mind maps and flowcharts with an AI-friendly API">
+<meta property="og:description" content="Draw mind maps and flowcharts in your browser. Maps stay in your browser; any AI can read and edit them through paste, links or window.mindmap.">
+<meta property="og:url" content="https://odoluca.github.io/mindmap/">
+<meta name="theme-color" content="#1f7ae0">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-undo" viewBox="0 0 24 24"><path d="M9 14L4 9l5-5M4 9h9a6 6 0 010 12h-4"/></symbol>
+    <symbol id="i-redo" viewBox="0 0 24 24"><path d="M15 14l5-5-5-5M20 9h-9a6 6 0 000 12h4"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-minus" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
+    <symbol id="i-fit" viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></symbol>
+    <symbol id="i-maps" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></symbol>
+    <symbol id="i-panel" viewBox="0 0 24 24"><path d="M4 4h16v16H4zM15 4v16"/></symbol>
+    <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 015 0c0 1.5-2.5 2-2.5 3.5M12 17h.01"/></symbol>
+  </defs>
+</svg>
+
+<header class="topbar">
+  <button id="btnMaps" class="btn icon" title="Maps"><svg><use href="#i-maps"/></svg></button>
+  <div class="brand"><img src="assets/icon.svg" alt="" width="26" height="26"><span>mind<em>map</em></span></div>
+  <input id="mapName" class="map-name" type="text" value="Untitled map" aria-label="Map name" spellcheck="false">
+  <div class="topbar-group">
+    <div class="menu-wrap">
+      <button id="btnNew" class="btn" aria-haspopup="true" aria-expanded="false">New ▾</button>
+      <div id="newMenu" class="menu" hidden>
+        <button id="btnNewMind">Mind map <small>a central idea with branches</small></button>
+        <button id="btnNewFlow">Flowchart <small>shapes and arrows, free placement</small></button>
+        <button id="btnExample">Example map <small>a tour of the features</small></button>
+        <button id="btnOpen">Open file… <small>.mindmap.json, .md or .txt outline</small></button>
+        <button id="btnImportMd">Paste… <small>JSON, operations or an outline</small></button>
+      </div>
+    </div>
+  </div>
+  <div class="topbar-group">
+    <button id="btnUndo" class="btn icon" title="Undo (Ctrl+Z)"><svg><use href="#i-undo"/></svg></button>
+    <button id="btnRedo" class="btn icon" title="Redo (Ctrl+Y)"><svg><use href="#i-redo"/></svg></button>
+  </div>
+  <select id="layoutSelect" class="select" title="Layout">
+    <option value="mindmap">Mind map</option>
+    <option value="right">Tree right</option>
+    <option value="down">Tree down</option>
+    <option value="radial">Radial</option>
+    <option value="layered-down">Layered down</option>
+    <option value="layered-right">Layered right</option>
+    <option value="free">Free</option>
+  </select>
+  <input id="search" class="search" type="search" placeholder="Search (Ctrl+F)" aria-label="Search nodes">
+  <div class="topbar-group">
+    <div class="menu-wrap">
+      <button id="btnExport" class="btn primary" aria-haspopup="true" aria-expanded="false">Export ▾</button>
+      <div id="exportMenu" class="menu" hidden>
+        <button id="btnJson">Map file (.mindmap.json) <small>everything, re-importable</small></button>
+        <button id="btnMd">Markdown outline (.md) <small>nested list, links and notes</small></button>
+        <button id="btnSvg">SVG drawing <small>vector, Inkscape / Illustrator</small></button>
+        <button id="btnPng">PNG image <small>raster, 2× resolution</small></button>
+        <button id="btnCopyJson">Copy JSON <small>to the clipboard, for an AI</small></button>
+        <button id="btnCopyMd">Copy outline <small>to the clipboard, for an AI</small></button>
+      </div>
+    </div>
+  </div>
+  <span id="saveStatus" class="save-status" aria-live="polite">Ready</span>
+  <button id="btnHelp" class="btn icon" title="Keyboard shortcuts and help"><svg><use href="#i-help"/></svg></button>
+  <button id="btnPanel" class="btn icon" title="Side panel"><svg><use href="#i-panel"/></svg></button>
+</header>
+
+<div class="workspace">
+  <aside class="sidebar" id="sidebar">
+    <h3 class="sec">Your maps</h3>
+    <div id="mapList" class="map-list"></div>
+    <p class="info">Maps are stored in this browser only. Export a file to keep a copy or move it elsewhere.</p>
+  </aside>
+  <main class="canvas" id="canvas" tabindex="0" aria-label="Map canvas">
+    <div class="viewport" id="viewport">
+      <svg class="edges" id="edges" aria-hidden="true"></svg>
+      <div class="nodes" id="nodes"></div>
+    </div>
+    <div class="hud hud-zoom">
+      <button id="zoomIn" class="hud-btn" title="Zoom in (+)"><svg><use href="#i-plus"/></svg></button>
+      <span id="zoomLabel">100%</span>
+      <button id="zoomOut" class="hud-btn" title="Zoom out (−)"><svg><use href="#i-minus"/></svg></button>
+      <button id="zoomFit" class="hud-btn" title="Fit (F)"><svg><use href="#i-fit"/></svg></button>
+    </div>
+  </main>
+  <aside class="panel open" id="panel">
+    <div class="panel-tabs">
+      <button class="tab active" data-tab="node" id="panelTitle">Map</button>
+      <button class="tab" data-tab="notes">Notes</button>
+      <button class="tab" data-tab="log">Log</button>
+      <button class="tab" data-tab="api">AI / API</button>
+    </div>
+    <section id="tab-node" class="tab-body"></section>
+    <section id="tab-notes" class="tab-body" hidden></section>
+    <section id="tab-log" class="tab-body" hidden></section>
+    <section id="tab-api" class="tab-body" hidden></section>
+  </aside>
+</div>
+
+<footer class="statusbar">
+  <span>Double-click the canvas to add a floating node · drag the background to pan · wheel to zoom</span>
+  <span id="statusInfo"></span>
+</footer>
+
+<dialog id="help" class="help">
+  <h2>Mindmap</h2>
+  <p>Mind maps and flowcharts that stay in your browser, with an API any AI can use. <a href="api.html" target="_blank">API reference</a> · <a href="https://github.com/odoluca/mindmap" target="_blank">Source</a></p>
+  <table>
+    <tr><td><kbd>Tab</kbd></td><td>Add a child of the selected node</td></tr>
+    <tr><td><kbd>Enter</kbd></td><td>Add a sibling (a child when the root is selected)</td></tr>
+    <tr><td><kbd>Space</kbd> / <kbd>F2</kbd> / double-click</td><td>Edit text (<kbd>Enter</kbd> saves, <kbd>Shift+Enter</kbd> new line, <kbd>Esc</kbd> cancels)</td></tr>
+    <tr><td><kbd>Delete</kbd></td><td>Delete the selection (nodes with their branches, or a link)</td></tr>
+    <tr><td><kbd>←</kbd> <kbd>→</kbd> <kbd>↑</kbd> <kbd>↓</kbd></td><td>Move the selection between nodes</td></tr>
+    <tr><td><kbd>Shift</kbd>+click</td><td>Select several nodes; <kbd>L</kbd> links two selected nodes</td></tr>
+    <tr><td><kbd>C</kbd></td><td>Collapse or expand a branch</td></tr>
+    <tr><td><kbd>Ctrl+Z</kbd> / <kbd>Ctrl+Y</kbd></td><td>Undo / redo</td></tr>
+    <tr><td><kbd>Ctrl+D</kbd></td><td>Duplicate the selected branch</td></tr>
+    <tr><td><kbd>Ctrl+C</kbd> / <kbd>Ctrl+V</kbd></td><td>Copy the selected branch as an outline / paste an outline, JSON map or operations</td></tr>
+    <tr><td><kbd>Ctrl+F</kbd></td><td>Search; <kbd>Enter</kbd> jumps to the next match</td></tr>
+    <tr><td><kbd>F</kbd>, <kbd>+</kbd>, <kbd>−</kbd></td><td>Fit, zoom in, zoom out</td></tr>
+    <tr><td>Drag a node onto another</td><td>Move it (and its branch) under that node</td></tr>
+    <tr><td>Drag a node's dot onto another</td><td>Draw a link with an arrow; double-click the link to label it</td></tr>
+    <tr><td>Double-click the canvas</td><td>Add a floating node (handy for flowcharts)</td></tr>
+  </table>
+  <div class="row"><button class="btn primary" id="helpClose">Close</button></div>
+</dialog>
+
+<div id="toast" class="toast" hidden></div>
+<script type="module" src="src/main.js?v=0.1.0"></script>
+</body>
+</html>

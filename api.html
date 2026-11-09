@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mindmap API reference</title>
+<meta name="description" content="How humans and AI agents read and edit Mindmap maps: paste, links and window.mindmap.">
+<link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root { --bg: #f5f6f8; --panel: #fff; --line: #e3e6ea; --text: #1f2328; --muted: #6b7280; --accent: #1f7ae0; }
+  body { margin: 0; font-family: 'Inter', 'Segoe UI', system-ui, sans-serif; font-size: 14px; line-height: 1.55; color: var(--text); background: var(--bg); }
+  main { max-width: 860px; margin: 0 auto; padding: 24px 16px 80px; }
+  header { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
+  header img { width: 32px; height: 32px; }
+  h1 { font-size: 24px; margin: 0; } h1 small { font-weight: 400; color: var(--muted); font-size: 14px; margin-left: 8px; }
+  h2 { font-size: 18px; margin: 32px 0 8px; border-bottom: 1px solid var(--line); padding-bottom: 4px; }
+  h3 { font-size: 15px; margin: 20px 0 6px; }
+  a { color: var(--accent); }
+  code, pre { font-family: ui-monospace, Consolas, 'Cascadia Mono', monospace; font-size: 12.5px; }
+  code { background: #e9ecf0; padding: 1px 5px; border-radius: 4px; }
+  pre { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; overflow-x: auto; }
+  pre code { background: none; padding: 0; }
+  table { border-collapse: collapse; width: 100%; margin: 8px 0 16px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
+  th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+  tr:last-child td { border-bottom: 0; }
+  .note { background: #e6f0fc; border: 1px solid #cfe0f8; border-radius: 10px; padding: 10px 14px; margin: 12px 0; }
+  nav a { margin-right: 14px; }
+</style>
+</head>
+<body>
+<main>
+<header><img src="assets/icon.svg" alt=""><h1>Mindmap API <small>for people, scripts and AI agents</small></h1></header>
+<p><a href="./">← Back to the editor</a> · <a href="llms.txt">Plain-text version (llms.txt)</a> · <a href="https://github.com/odoluca/mindmap">Source</a></p>
+<nav><a href="#how">How it works</a><a href="#paste">Paste</a><a href="#links">Links</a><a href="#js">window.mindmap</a><a href="#json">Map JSON</a><a href="#ops">Operations</a><a href="#outline">Outline format</a><a href="#examples">Examples</a></nav>
+
+<h2 id="how">How it works</h2>
+<p>Mindmap is a static site. Maps are stored in your browser (IndexedDB) and never leave it unless you export them. There is no server, so there is no HTTP endpoint; instead <strong>the page itself is the API</strong>. Everything the editor does goes through one set of <a href="#ops">operations</a>, and anything that can reach those operations has the same editing power as you. Three transports exist:</p>
+<table><tr><th>Transport</th><th>Who it is for</th><th>Setup</th></tr>
+<tr><td><a href="#paste">Paste</a></td><td>Any AI, including chat assistants that cannot browse</td><td>None</td></tr>
+<tr><td><a href="#links">Links</a></td><td>Any AI that can write a URL, bookmarks, other apps</td><td>None</td></tr>
+<tr><td><a href="#js"><code>window.mindmap</code></a></td><td>Browser-driving agents (Claude in Chrome, Playwright, extensions), the devtools console</td><td>None; the object is always present</td></tr></table>
+<p>Every change records an <em>author</em>. Nodes added by someone other than you get a small badge, and the Log tab shows who did what, so AI edits are visible and reversible (undo works on them too). <em>Notes</em> are comments attached to a node or the map, kept separate from node text so an agent can annotate without rewriting your words.</p>
+
+<h2 id="paste">1. Paste round trip</h2>
+<ol>
+<li>In the editor choose <strong>Export ▾ Copy JSON</strong> (complete) or <strong>Copy outline</strong> (compact markdown) and give it to the AI.</li>
+<li>Ask for a change. The AI replies with an <a href="#outline">outline</a>, an <a href="#ops">operations array</a>, or an edited map JSON.</li>
+<li>Select the node the material belongs under, then press <kbd>Ctrl+V</kbd> on the canvas, or paste into the <strong>AI / API</strong> panel and click Apply (there you can also set the author name).</li>
+</ol>
+<p>Pasted outlines are added under the selected node (or the root). Operation arrays are applied to the open map. A full map JSON is imported as a new map.</p>
+
+<h2 id="links">2. Link commands</h2>
+<p>Open a URL of the form <code>https://odoluca.github.io/mindmap/#command=value</code>. One command per link. The value is either URL-encoded text/JSON or base64url prefixed with <code>b64:</code> (use <code>mindmap.encodeForUrl(value)</code> or <code>mindmap.linkFor('ops', ops)</code> to build one). The hash never reaches a server. After running, the command is removed from the address bar.</p>
+<table><tr><th>Command</th><th>Effect</th></tr>
+<tr><td><code>#ops=[…]</code></td><td>Apply an operations array to the open map (the last-used map is opened first).</td></tr>
+<tr><td><code>#outline=…</code></td><td>Create a new map from a markdown outline (its first heading or item becomes the name).</td></tr>
+<tr><td><code>#import={…}</code></td><td>Import a full map JSON as a new map and open it.</td></tr>
+<tr><td><code>#open=&lt;id&gt;</code></td><td>Open the map with that id.</td></tr>
+<tr><td><code>#cmd={…}</code></td><td>General form: <code>{"ops":[…], "author":"claude"}</code>, <code>{"outline":"…", "parent":"Node text", "append":true}</code>, <code>{"open":"id"}</code>, <code>{"map":{…}}</code>. Keys can be combined; <code>open</code> runs first.</td></tr></table>
+<pre><code>https://odoluca.github.io/mindmap/#ops=[{"op":"addNode","text":"Ideas from today","color":"green"}]
+https://odoluca.github.io/mindmap/#outline=%23%20Trip%0A-%20Pack%0A%20%20-%20Passport%0A-%20Book%20hotel</code></pre>
+
+<h2 id="js">3. <code>window.mindmap</code></h2>
+<p>A global object on the editor page. Node references (<code>parent</code>, <code>from</code>, <code>to</code>, <code>id</code>, <code>target</code>) accept a node id or a node text when that text is unique. Results are plain JSON copies. Call <code>mindmap.help()</code> for a short reminder.</p>
+<table><tr><th>Call</th><th>Returns</th><th>Notes</th></tr>
+<tr><td><code>listMaps()</code></td><td>Promise of <code>[{id, name, kind, nodes, updatedAt}]</code></td><td>Newest first.</td></tr>
+<tr><td><code>getMap()</code></td><td>The open map (<a href="#json">JSON</a>)</td><td>Synchronous.</td></tr>
+<tr><td><code>getMapById(id)</code></td><td>Promise of a map</td><td>Does not open it.</td></tr>
+<tr><td><code>openMap(id)</code>, <code>createMap({name, kind, root})</code>, <code>importMap(json)</code>, <code>deleteMap(id)</code></td><td>Promises</td><td><code>kind</code> is <code>mindmap</code> or <code>flowchart</code>.</td></tr>
+<tr><td><code>apply(ops, {author})</code></td><td><code>{ok:true, results:[…]}</code> or <code>{ok:false, error, index}</code></td><td>Atomic. One undo step.</td></tr>
+<tr><td><code>addNode(text, parent, extra)</code></td><td>new id</td><td><code>extra</code>: shape, color, notes, tags, index, author…</td></tr>
+<tr><td><code>addTree(parent, nodes)</code></td><td>ids</td><td><code>nodes</code>: <code>[{text, children:[…]}]</code> or strings.</td></tr>
+<tr><td><code>updateNode(id, fields)</code>, <code>deleteNode(id, cascade)</code></td><td>id / ids</td><td></td></tr>
+<tr><td><code>link(from, to, label, extra)</code></td><td>edge id</td><td><code>extra</code>: directed, style, color.</td></tr>
+<tr><td><code>note(text, target)</code></td><td>note id</td><td><code>target</code> null = map note.</td></tr>
+<tr><td><code>getNode(ref)</code>, <code>find(query)</code>, <code>children(ref)</code>, <code>roots()</code>, <code>notes(ref)</code>, <code>log(limit)</code></td><td>JSON</td><td><code>find</code> searches text, notes and tags.</td></tr>
+<tr><td><code>outline()</code>, <code>addOutline(markdown, parent)</code></td><td>markdown / ids</td><td></td></tr>
+<tr><td><code>describe()</code></td><td>one-line summary</td><td></td></tr>
+<tr><td><code>select(ids)</code>, <code>selection()</code>, <code>centerOn(id)</code>, <code>fit()</code>, <code>undo()</code>, <code>redo()</code></td><td>—</td><td>View helpers.</td></tr>
+<tr><td><code>on(event, fn)</code></td><td>unsubscribe function</td><td>Events: <code>change</code> (<code>{id, ops, author}</code>), <code>open</code>, <code>select</code>.</td></tr>
+<tr><td><code>author</code></td><td>string property</td><td>Default author for calls without one (initially <code>assistant</code>). Set it to your name, for example <code>mindmap.author = 'claude'</code>.</td></tr>
+<tr><td><code>encodeForUrl(value)</code>, <code>linkFor(command, value)</code></td><td>string</td><td>Build <a href="#links">link commands</a>.</td></tr>
+<tr><td><code>ops</code>, <code>shapes</code>, <code>colors</code>, <code>layouts</code>, <code>edgeStyles</code></td><td>arrays</td><td>The allowed values.</td></tr></table>
+<pre><code>mindmap.author = 'claude';
+const map = mindmap.getMap();
+const ids = mindmap.addTree('Research', [
+  { text: 'Read papers', children: ['Survey A', 'Survey B'] },
+  { text: 'Run experiment', shape: 'diamond', color: 'orange', notes: 'needs the GPU box' },
+]);
+mindmap.link(ids[0], 'Run experiment', 'then');
+mindmap.note('Outline drafted from the meeting notes.', 'Research');
+mindmap.fit();</code></pre>
+
+<h2 id="json">Map JSON</h2>
+<pre><code>{
+  "app": "mindmap", "version": 1,
+  "id": "m3k1…", "name": "Project plan", "kind": "mindmap",
+  "createdAt": "2026-11-09T10:00:00.000Z", "updatedAt": "…",
+  "settings": { "layout": "mindmap", "edgeStyle": "curved", "showAuthors": true },
+  "view": { "x": 0, "y": 0, "scale": 1 },
+  "nodes": [
+    { "id": "n1", "text": "Project plan", "notes": "", "shape": "rounded", "color": "default",
+      "parent": null, "x": 0, "y": 0, "w": null, "h": null, "collapsed": false, "tags": [],
+      "author": "user", "createdAt": "…", "updatedAt": "…" },
+    { "id": "n2", "text": "Phase 1", "parent": "n1", "color": "blue", … }
+  ],
+  "edges": [ { "id": "e1", "from": "n2", "to": "n5", "label": "blocks", "directed": true, "style": null, "color": "default", "author": "user", "createdAt": "…" } ],
+  "notes": [ { "id": "c1", "target": "n2", "text": "Agreed on Monday", "author": "claude", "createdAt": "…" } ],
+  "log":   [ { "at": "…", "author": "claude", "op": "addNote", "id": "c1", "summary": "Note on \"Phase 1\": Agreed on Monday" } ]
+}</code></pre>
+<ul>
+<li>The tree is given by <code>parent</code>. Sibling order is the order of the <code>nodes</code> array. Parent links are drawn automatically; <code>edges</code> are extra links (cross references, flowchart arrows).</li>
+<li><code>shape</code>: <code>rounded</code> <code>rect</code> <code>ellipse</code> <code>diamond</code> <code>parallelogram</code> <code>stadium</code> <code>hexagon</code> <code>cylinder</code> <code>sticky</code> <code>text</code>.</li>
+<li><code>color</code>: <code>default</code> <code>red</code> <code>orange</code> <code>yellow</code> <code>green</code> <code>teal</code> <code>blue</code> <code>purple</code> <code>pink</code> <code>gray</code>.</li>
+<li><code>settings.layout</code>: <code>mindmap</code> <code>right</code> <code>down</code> <code>radial</code> <code>layered-down</code> <code>layered-right</code> <code>free</code>. In every mode but <code>free</code> the positions are computed automatically and <code>x</code>/<code>y</code> are overwritten; in <code>free</code> they are used as given.</li>
+<li><code>settings.edgeStyle</code>: <code>curved</code> <code>straight</code> <code>orthogonal</code>. An edge's own <code>style</code> overrides it.</li>
+<li><code>w</code>/<code>h</code> fix a node's size; <code>null</code> means "fit the text".</li>
+<li>Unknown fields are dropped and invalid references repaired on import, so a partially correct file still loads.</li>
+</ul>
+
+<h2 id="ops">Operations</h2>
+<p>An operation is an object with an <code>op</code> key. Lists are applied in order and atomically: if one fails, nothing changes and the error names the failing index. Each operation records a log entry with the author.</p>
+<table><tr><th>Operation</th><th>Fields</th><th>Result</th></tr>
+<tr><td><code>addNode</code></td><td><code>text</code>, <code>parent?</code>, <code>shape?</code>, <code>color?</code>, <code>notes?</code>, <code>tags?</code>, <code>index?</code>, <code>x?</code>, <code>y?</code>, <code>collapsed?</code>, <code>id?</code><br>Omit <code>parent</code> for the root (mind maps) or a floating node (flowcharts); <code>null</code> forces floating. <code>index</code> is the position among siblings.</td><td><code>{id}</code></td></tr>
+<tr><td><code>addTree</code></td><td><code>parent?</code>, <code>nodes</code>: array of <code>{text, notes?, shape?, color?, tags?, children?:[…]}</code> or plain strings</td><td><code>{ids}</code> in depth-first order</td></tr>
+<tr><td><code>updateNode</code></td><td><code>id</code> plus any of <code>text notes shape color tags collapsed parent index x y w h</code></td><td><code>{id}</code></td></tr>
+<tr><td><code>moveNode</code></td><td><code>id</code>, <code>parent</code> (null = top level), <code>index?</code></td><td><code>{id}</code></td></tr>
+<tr><td><code>deleteNode</code></td><td><code>id</code>, <code>cascade?</code> (default true; false re-attaches children to the grandparent)</td><td><code>{ids}</code> removed</td></tr>
+<tr><td><code>addEdge</code></td><td><code>from</code>, <code>to</code>, <code>label?</code>, <code>directed?</code> (default true), <code>style?</code>, <code>color?</code></td><td><code>{id}</code></td></tr>
+<tr><td><code>updateEdge</code></td><td><code>id</code> plus any of <code>label directed style color from to</code></td><td><code>{id}</code></td></tr>
+<tr><td><code>deleteEdge</code></td><td><code>id</code></td><td><code>{id}</code></td></tr>
+<tr><td><code>addNote</code></td><td><code>text</code>, <code>target?</code> (node or null for the map)</td><td><code>{id}</code></td></tr>
+<tr><td><code>updateNote</code> / <code>deleteNote</code></td><td><code>id</code>, <code>text</code></td><td><code>{id}</code></td></tr>
+<tr><td><code>setMap</code></td><td><code>name?</code>, <code>kind?</code>, <code>settings?</code> (<code>layout</code>, <code>edgeStyle</code>, <code>showAuthors</code>), <code>view?</code></td><td><code>{id}</code></td></tr>
+<tr><td><code>layout</code></td><td><code>mode</code>, <code>once?</code> (apply to coordinates but keep the <code>free</code> mode)</td><td><code>{relayout}</code></td></tr>
+<tr><td><code>replaceMap</code></td><td><code>map</code>: a full map JSON whose content replaces the open map's nodes, edges, notes and settings (the id stays)</td><td><code>{id}</code></td></tr></table>
+
+<h2 id="outline">Outline format</h2>
+<p>The compact text form, used by Export ▾ Copy outline, by <code>#outline=</code> and by paste. It is ordinary markdown.</p>
+<pre><code># Map name
+
+- Root idea
+  - First branch {color=blue}
+    - Leaf with notes
+      > Notes can span
+      > several lines
+    - Decision {shape=diamond tags=risk,todo}
+  - Second branch
+
+## Links
+
+- Leaf with notes -> Second branch: see also
+- First branch -- Second branch
+
+## Notes
+
+- A note on the whole map</code></pre>
+<ul>
+<li>Two spaces (or a tab) per level. Bullets (<code>-</code>, <code>*</code>, <code>1.</code>) are optional, so tab-indented plain text also works.</li>
+<li>Lines starting with <code>&gt;</code> become the notes of the item above.</li>
+<li><code>{shape=… color=… tags=a,b}</code> at the end of a line sets node properties.</li>
+<li><code>## Links</code> lists extra links by node text: <code>-&gt;</code> for an arrow, <code>--</code> for a plain line, <code>: label</code> optional.</li>
+</ul>
+
+<h2 id="examples">Examples</h2>
+<h3>Ask an AI to extend a branch (paste)</h3>
+<pre><code>Here is my mind map as an outline: … (paste)
+Add five sub-points under "Marketing" as a markdown outline, nothing else.</code></pre>
+<p>Select "Marketing", press <kbd>Ctrl+V</kbd>.</p>
+<h3>Operations array (paste or <code>#ops=</code>)</h3>
+<pre><code>[
+  { "op": "addTree", "parent": "Marketing", "nodes": [
+      { "text": "Launch post", "children": ["Draft", "Review", "Publish"] },
+      { "text": "Newsletter", "color": "teal" } ] },
+  { "op": "addNote", "target": "Marketing", "text": "Suggested by Claude on request; adjust dates." },
+  { "op": "updateNode", "id": "Old item", "color": "gray", "notes": "superseded by the launch post" }
+]</code></pre>
+<h3>A flowchart from scratch (<code>window.mindmap</code>)</h3>
+<pre><code>await mindmap.createMap({ name: 'Login flow', kind: 'flowchart' });
+mindmap.apply([
+  { op: 'addNode', id: 'start', text: 'Start', shape: 'stadium' },
+  { op: 'addNode', id: 'creds', text: 'Enter credentials', shape: 'parallelogram' },
+  { op: 'addNode', id: 'ok', text: 'Valid?', shape: 'diamond', color: 'yellow' },
+  { op: 'addNode', id: 'home', text: 'Show home', shape: 'rect' },
+  { op: 'addNode', id: 'end', text: 'End', shape: 'stadium' },
+  { op: 'addEdge', from: 'start', to: 'creds' },
+  { op: 'addEdge', from: 'creds', to: 'ok' },
+  { op: 'addEdge', from: 'ok', to: 'home', label: 'yes' },
+  { op: 'addEdge', from: 'ok', to: 'creds', label: 'no' },
+  { op: 'addEdge', from: 'home', to: 'end' },
+  { op: 'layout', mode: 'layered-down', once: true },
+], { author: 'claude' });</code></pre>
+<h3>Watch for changes</h3>
+<pre><code>mindmap.on('change', ({ author, ops }) => console.log(author, 'applied', ops.length, 'operations'));</code></pre>
+</main>
+</body>
+</html>

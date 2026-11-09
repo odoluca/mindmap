@@ -1,0 +1,12 @@
+{
+  "name": "mindmap",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Mind maps and flowcharts in the browser with an API any AI can use. No build step, no dependencies, no backend.",
+  "scripts": {
+    "test": "node --test tests/*.test.mjs",
+    "check": "node --check src/model.js && node --check src/layout.js && node --check src/render.js && node --check src/storage.js && node --check src/api.js && node --check src/main.js && node --check src/sample.js",
+    "preview": "python scripts/serve.py 8080"
+  }
+}

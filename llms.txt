@@ -1,0 +1,93 @@
+# Mindmap – API for AI agents
+
+Mindmap (https://odoluca.github.io/mindmap/) is a mind map and flowchart editor that runs entirely in the
+user's browser. Maps are stored in that browser (IndexedDB); there is no server and no account.
+The page itself is the API. An AI can read and edit maps in three ways, from most to least universal.
+
+## 1. Paste round trip (works with any AI, including chat)
+
+The user copies the open map (Export ▾ "Copy JSON" or "Copy outline") and gives it to you.
+You reply with ONE of the following; the user pastes it on the canvas (Ctrl+V) or into the "AI / API" panel:
+
+- A markdown outline. Nested "- item" lines (2 spaces per level) are added as new nodes under the
+  selected node (or the root). Lines starting with "> " become the notes of the item above.
+  Optional trailing meta: "- Text {shape=diamond color=blue tags=a,b}".
+  A "## Links" section lists "A -> B: label" (arrow) or "A -- B" (plain) between node texts.
+- A JSON array of operations (see below). Applied atomically to the open map.
+- A full map JSON (the object you received, edited). It is imported as a new map.
+
+## 2. Links (any AI that can write a URL)
+
+One command per URL; the value is URL-encoded JSON/text, or base64url prefixed with "b64:".
+  https://odoluca.github.io/mindmap/#ops=[{"op":"addNode","text":"Hello"}]
+  https://odoluca.github.io/mindmap/#outline=-%20Root%0A%20%20-%20Child
+  https://odoluca.github.io/mindmap/#import={"name":"X","nodes":[...]}
+  https://odoluca.github.io/mindmap/#open=<map id>
+  https://odoluca.github.io/mindmap/#cmd={"ops":[...],"author":"claude"}
+#outline creates a new map; use #cmd={"outline":"...","parent":"<node id or text>"} to add under a node.
+
+## 3. window.mindmap (browser-driving agents, extensions, the devtools console)
+
+  mindmap.help()                      -> this reference, short form
+  mindmap.listMaps()                  -> Promise<[{id,name,kind,nodes,updatedAt}]>
+  mindmap.getMap()                    -> the open map as JSON (synchronous)
+  mindmap.getMapById(id)              -> Promise<map>
+  mindmap.openMap(id) / createMap({name,kind,root}) / importMap(json) / deleteMap(id)   -> Promises
+  mindmap.apply(ops, {author})        -> {ok:true, results:[...]} | {ok:false, error, index}
+  mindmap.addNode(text, parent, extra) -> id        mindmap.addTree(parent, nodes) -> ids
+  mindmap.updateNode(id, fields)      mindmap.deleteNode(id, cascade)
+  mindmap.link(from, to, label, extra) -> edge id   mindmap.note(text, target) -> note id
+  mindmap.getNode(ref) / find(query) / children(ref) / roots() / notes(ref) / log(limit)
+  mindmap.outline() -> markdown       mindmap.addOutline(markdown, parent) -> ids
+  mindmap.describe()                  mindmap.select(ids) / centerOn(id) / fit() / undo() / redo()
+  mindmap.on('change'|'open'|'select', fn)          mindmap.author = 'claude'  (default author for calls)
+  mindmap.linkFor('ops', ops)         -> a shareable URL that applies the ops
+All calls act on the open map. Node references (parent, from, to, id, target) accept a node id or a
+unique node text.
+
+## Map JSON
+
+{ app:"mindmap", version:1, id, name, kind:"mindmap"|"flowchart", createdAt, updatedAt,
+  settings:{ layout, edgeStyle, showAuthors }, view:{x,y,scale},
+  nodes:[{ id, text, notes, shape, color, parent|null, x, y, w|null, h|null, collapsed, tags:[], author, createdAt, updatedAt }],
+  edges:[{ id, from, to, label, directed, style|null, color, author, createdAt }],
+  notes:[{ id, target|null, text, author, createdAt }],
+  log:[{ at, author, op, id, summary }] }
+
+- The tree is given by node.parent. Sibling order is the order of the nodes array. Parent links are
+  drawn automatically; "edges" are extra links (cross references, flowchart arrows).
+- shapes: rounded rect ellipse diamond parallelogram stadium hexagon cylinder sticky text
+- colors: default red orange yellow green teal blue purple pink gray
+- layouts: mindmap right down radial layered-down layered-right free   (positions are computed
+  automatically except in "free", where x,y are used as given)
+- edgeStyle: curved straight orthogonal
+- "notes" are comments attached to a node or the map, kept apart from node text. "log" records
+  who changed what. Use a distinctive author name (for example "claude") so your changes are marked.
+
+## Operations (for apply, #ops and pasted JSON arrays)
+
+  {op:"addNode", text, parent?, shape?, color?, notes?, tags?, index?, x?, y?, collapsed?}   -> {id}
+     parent omitted = the root (mind maps) or floating (flowcharts); parent:null = floating.
+  {op:"addTree", parent?, nodes:[{text, notes?, shape?, color?, tags?, children:[...]} | "text"]} -> {ids}
+  {op:"updateNode", id, text?, notes?, shape?, color?, tags?, collapsed?, parent?, index?, x?, y?, w?, h?}
+  {op:"moveNode", id, parent, index?}
+  {op:"deleteNode", id, cascade?=true}        cascade:false re-attaches children to the grandparent
+  {op:"addEdge", from, to, label?, directed?=true, style?, color?}  -> {id}
+  {op:"updateEdge", id, label?, directed?, style?, color?, from?, to?}
+  {op:"deleteEdge", id}
+  {op:"addNote", target?, text}   {op:"updateNote", id, text}   {op:"deleteNote", id}
+  {op:"setMap", name?, kind?, settings?:{layout?, edgeStyle?, showAuthors?}}
+  {op:"layout", mode, once?}      once:true applies the layout to coordinates but keeps "free"
+  {op:"replaceMap", map}          replaces nodes/edges/notes/settings of the open map
+Operations are applied in order and atomically: if one fails, nothing changes and the error names
+the failing index.
+
+## Tips for good maps
+
+- Keep node text short (a few words); put detail in "notes".
+- Add 3–7 children per branch; deeper trees read better than wide ones.
+- Use colors per branch, shapes for flowcharts (stadium start/end, diamond decisions, rect steps,
+  parallelogram input/output), and edge labels for conditions ("yes", "no").
+- Prefer addTree for new material and updateNode/addNote for revisions, so the log stays readable.
+
+Full reference with examples: https://odoluca.github.io/mindmap/api.html
